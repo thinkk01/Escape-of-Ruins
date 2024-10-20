@@ -1,6 +1,6 @@
 import * as pc from "playcanvas";
 import { createGround, loadMaterial, stateMachine } from "./common/common";
-
+import { StartScreen } from "../ex1/handle/screenStart";
 pc.WasmModule.setConfig("Ammo", {
   glueUrl: "../../AmmoJS/Utils/ammo.wasm.js",
   wasmUrl: "../../AmmoJS/Utils/ammo.wasm.wasm",
@@ -23,6 +23,9 @@ async function init() {
   app.setCanvasResolution(pc.RESOLUTION_AUTO);
 
   window.addEventListener("resize", () => app.resizeCanvas());
+  // screen
+  // const startScreen = new StartScreen(app);
+  // start
   app.start();
 
   const cameraEntity = new pc.Entity("MainCamera");
@@ -61,10 +64,10 @@ async function init() {
       url: "../ex1/assets/animation/run/mixamo.com.glb",
     }),
     playerJump: new pc.Asset("animation_jump_player", "animation", {
-      url: "../ex1/assets/animation/jump/mixamo.com (2).glb",
+      url: "../ex1/assets/animation/jump/mixamo.com (5).glb",
     }),
     playerSlide: new pc.Asset("animation_slide_player", "animation", {
-      url: "../ex1/assets/slide/mixamo.com (3).glb",
+      url: "../ex1/assets/animation/slide/mixamo.com (3).glb",
     }),
     groundModel: new pc.Asset("model_ground", "model", {
       url: "../ex1/assets/ground/ground_1.glb",
@@ -72,14 +75,17 @@ async function init() {
     groundTexture: new pc.Asset("texture_ground", "texture", {
       url: "../ex1/assets/ground/ground.png",
     }),
-    cliffsTexture: new pc.Asset("cliffsTexture", "texture", {
-      url: "../ex1/assets/ground/ground.png",
-    }),
-    plantTexture: new pc.Asset("plantTexture", "texture", {
-      url: "../ex1/assets/ground/ground.png",
-    }),
+    // cliffsTexture: new pc.Asset("cliffsTexture", "texture", {
+    //   url: "../ex1/assets/ground/ground.png",
+    // }),
+    // plantTexture: new pc.Asset("plantTexture", "texture", {
+    //   url: "../ex1/assets/ground/ground.png",
+    // }),
     playerIdle: new pc.Asset("player_idle", "animation", {
       url: "../ex1/assets/animation/idle/mixamo.com (4).glb",
+    }),
+    coinModel: new pc.Asset("coin", "texture", {
+      url: "../ex1/assets/models/Coin_ui.png",
     }),
   };
 
@@ -90,8 +96,8 @@ async function init() {
   assetListLoader.load(() => {
     const textures = [
       assets.groundTexture,
-      assets.cliffsTexture,
-      assets.plantTexture,
+      // assets.cliffsTexture,
+      // assets.plantTexture,
     ];
     const [groundMaterial, cliffsMaterial, plantMaterial] = loadMaterial(
       pc,
@@ -101,9 +107,6 @@ async function init() {
       x: 0,
       y: 1,
       z: 0,
-      Cx: 70,
-      Cy: 0.25,
-      Cz: 11,
       scaleX: 22,
       scaleY: 0.5,
       scaleZ: 142,
@@ -125,23 +128,19 @@ async function init() {
 
     player.addComponent("animation", {
       assets: [
-        assets.playerIdle,
         assets.playerRunning,
+        assets.playerIdle,
         assets.playerJump,
         assets.playerSlide,
       ],
     });
     let currentAnim = assets.playerIdle.name;
-    // create machine for charracter
     const playerStateMachine = new stateMachine("idle");
-
-    // Add state to state machine
-    playerStateMachine.addState("idle", () => {
-      player.animation?.play(assets.playerIdle.name, 0.2);
-    });
-
     playerStateMachine.addState("running", () => {
       player.animation?.play(assets.playerRunning.name, 0.2);
+    });
+    playerStateMachine.addState("idle", () => {
+      player.animation?.play(assets.playerIdle.name, 0.2);
     });
 
     playerStateMachine.addState("jump", () => {
@@ -151,13 +150,14 @@ async function init() {
     playerStateMachine.addState("slide", () => {
       player.animation?.play(assets.playerSlide.name, 0.2);
     });
-    player.setPosition(0, 5, 6);
+    player.setPosition(0, 2, 6);
     const material = player.model?.meshInstances[0]
       .material as pc.StandardMaterial;
     material.diffuseMap = assets.playerTexture.resource;
 
     player.addComponent("rigidbody", {
       type: "dynamic",
+      angularFactor: new pc.Vec3(0, 0, 0),
       mass: 1,
     });
     player.addComponent("collision", {
@@ -168,92 +168,119 @@ async function init() {
 
     const charMovement = new pc.Vec3();
     charMovement.z = player.getPosition().z;
-    // console.log(charMovement);
-    let charSpeed = 8;
     const keyboard = new pc.Keyboard(document.body);
+    cameraEntity.setPosition(0, 5, 20);
+
+    let charSpeed = 8;
     let isJumping = false;
-    let jumpTimer = 0;
-    let isSlay = false;
+    const lanes = [2, 0, -2];
+    let currentLane = 1;
+    const cameraOffsetZ = -10;
+    const cameraOffsetY = 4;
+    let swapRight = true;
+    let swapLeft = true;
+    let canChangeLane = true;
+    let isSliding = false;
 
     app.on("update", (dt) => {
-      const cameraOffsetZ = -10;
-      const cameraOffsetY = 4;
       const playerPos = player.getPosition();
-      // charMovement.z = playerPos.z;
+      //auto move
+      const groundMovement = new pc.Vec3(0, 0, -charSpeed * dt);
+      app.root.setPosition(app.root.getPosition().add(groundMovement));
+      //camera
       cameraEntity.lookAt(playerPos);
 
-      if (keyboard.isPressed(pc.KEY_LEFT)) {
-        charMovement.x += charSpeed * dt;
-      }
-      if (keyboard.isPressed(pc.KEY_RIGHT)) {
-        charMovement.x -= charSpeed * dt;
-      }
-      // if (keyboard.isPressed(pc.KEY_DOWN)) {
-      //   player.animation?.play(assets.playerSlide.name, 2);
-      // }
-      if (
-        keyboard.isPressed(pc.KEY_C) &&
-        !isJumping &&
-        player.rigidbody!.linearVelocity.y === 0
-      ) {
-        player.animation?.play(assets.playerJump.name, 4);
-        // player.rigidbody!.applyImpulse(
-        //   0,
-        //   playerPos.y,
-        //   charMovement.z * charSpeed * dt
-        // );
-        isJumping = true;
-      }
-
-      if (
-        keyboard.isPressed(pc.KEY_DOWN) &&
-        player.rigidbody!.linearVelocity.y === 0
-      ) {
-        isJumping = true;
-        player.animation?.play(assets.playerSlide.name, 4);
-        player.rigidbody!.applyImpulse(
-          playerPos.x,
-          playerPos.y,
-          charSpeed * dt
-        );
-      }
-      if (isJumping) {
-        jumpTimer -= dt;
+      //swaplane
+      if (canChangeLane) {
+        if (keyboard.isPressed(pc.KEY_LEFT) && currentLane > 0 && swapLeft) {
+          currentLane -= 1;
+          canChangeLane = false;
+        }
+        if (currentLane < 1) {
+          swapLeft = false;
+          swapRight = true;
+        }
+        if (currentLane > 1) {
+          swapRight = false;
+          swapLeft = true;
+        }
         if (
-          jumpTimer <= 0 &&
-          Math.floor(Math.abs(player.rigidbody!.linearVelocity.y)) === 0
+          keyboard.isPressed(pc.KEY_RIGHT) &&
+          currentLane < lanes.length - 1 &&
+          swapRight
         ) {
-          isJumping = false;
-          player.animation?.play(assets.playerRunning.name, 4);
+          currentLane += 1;
+          canChangeLane = false;
         }
       }
-      // console.log(player.rigidbody!.linearVelocity.y);
-      charMovement.z += charSpeed * dt;
-      const newPos = playerPos.clone().add(charMovement);
+      if (
+        !keyboard.isPressed(pc.KEY_LEFT) &&
+        !keyboard.isPressed(pc.KEY_RIGHT)
+      ) {
+        canChangeLane = true;
+      }
+      const targetX = lanes[currentLane];
+
+      const newPos = new pc.Vec3(targetX, playerPos.y, playerPos.z);
       player.setPosition(newPos);
-      if (charMovement.length() > 0) {
-        const angle = Math.atan2(charMovement.x, charMovement.z);
-        player.setEulerAngles(0, angle * pc.math.RAD_TO_DEG, 0);
+
+      // jump
+      if (
+        keyboard.isPressed(pc.KEY_SPACE) &&
+        !isJumping &&
+        player.rigidbody!.linearVelocity.y < 0.5
+      ) {
+        playerStateMachine.changeState("jump");
+        player.rigidbody!.applyImpulse(new pc.Vec3(0, 5, 0));
+        isJumping = true;
+        console.log(true);
+      }
+      if (isJumping) {
+        if (player.rigidbody!.linearVelocity.y <= 0) {
+          if (playerPos.y <= 1.5) {
+            player.rigidbody!.linearVelocity = new pc.Vec3(0, 0, 0);
+            player.setPosition(targetX, 1, playerPos.z);
+            playerStateMachine.changeState("running");
+            isJumping = false;
+          }
+        }
+      }
+      if (keyboard.isPressed(pc.KEY_DOWN) && !isSliding) {
+        isSliding = true; // Đánh dấu là đang trượt
+        playerStateMachine.changeState("slide");
+
+        // Chuyển đổi hình dạng va chạm sang hình chữ nhật khi trượt
+        player.collision!.type = "capsule"; // Chọn loại box
+        player.collision!.halfExtents.set(0, 1, 0); // Điều chỉnh kích thước box (x, y, z)
+        player.collision!.height = 1;
+        // Thời gian trượt
+        setTimeout(() => {
+          player.collision!.type = "capsule";
+          player.collision!.halfExtents.set(0, 1, 0);
+          player.collision!.height = 2;
+          playerStateMachine.changeState("running");
+          isSliding = false;
+        }, 600);
       }
 
+      // Các phần còn lại của m
+      console.log(playerPos);
       cameraEntity.setPosition(
-        pc.math.lerp(cameraEntity.getPosition().x, playerPos.x, 1),
+        pc.math.lerp(cameraEntity.getPosition().x, playerPos.x, 0.1),
         pc.math.lerp(
           cameraEntity.getPosition().y,
           playerPos.y + cameraOffsetY,
-          1
+          0.1
         ),
         pc.math.lerp(
           cameraEntity.getPosition().z,
           playerPos.z + cameraOffsetZ,
-          1
+          0.1
         )
       );
+
+      // Đặt lại chuyển động
       charMovement.set(0, 0, 0);
-      // console.log(playerPos);
-      // if (playerPos.z > 10 || playerPos.x < -5 || playerPos.x > 5) {
-      //   player.setPosition(0, playerPos.y, 0);
-      // }
     });
   });
 }

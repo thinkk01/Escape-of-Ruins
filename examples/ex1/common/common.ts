@@ -15,9 +15,6 @@ export function createGround(props: any) {
     scaleX,
     scaleY,
     scaleZ,
-    Cx,
-    Cy,
-    Cz,
     app,
     pc,
     groundModel,
@@ -28,7 +25,6 @@ export function createGround(props: any) {
   const ground = new pc.Entity("ground");
   ground.addComponent("model", { type: "asset", asset: groundModel });
 
-  ground.setLocalScale(scaleX, scaleY, scaleZ);
   ground.setPosition(x, y, z);
   const scale1 = 1;
   ground.setLocalScale(scale1, scale1, scale1);
@@ -54,11 +50,13 @@ export function createGround(props: any) {
   // console.log(ground.model.meshInstances[2]);
   ground.addComponent("rigidbody", {
     type: "static",
+    // mass: 0,
     restitution: 0.5,
   });
   ground.addComponent("collision", {
     type: "box",
-    halfExtents: new pc.Vec3(scaleX / 2, 0, scaleZ / 2),
+    halfExtents: new pc.Vec3(5, 0.01, 50),
+    linearOffset: new pc.Vec3(0, 0, 50),
   });
   app.root.addChild(ground);
   return ground;
