@@ -12,9 +12,6 @@ export function createGround(props: any) {
     x,
     y,
     z,
-    scaleX,
-    scaleY,
-    scaleZ,
     app,
     pc,
     groundModel,
@@ -47,10 +44,8 @@ export function createGround(props: any) {
       console.error("Không đủ meshInstances để áp dụng các vật liệu khác nhau");
     }
   });
-  // console.log(ground.model.meshInstances[2]);
   ground.addComponent("rigidbody", {
     type: "static",
-    // mass: 0,
     restitution: 0.5,
   });
   ground.addComponent("collision", {
