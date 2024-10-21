@@ -22,8 +22,6 @@ export class Ground {
       const ground = this.createGround(0, 1, initialZ + i * groundLength);
       this.grounds.push(ground);
     }
-    console.log("map0" + this.grounds[0].getPosition());
-    console.log("map1" + this.grounds[1].getPosition());
   }
 
   private createGround(x: number, y: number, z: number): pc.Entity {
@@ -69,7 +67,7 @@ export class Ground {
       ground.setPosition(groundPos.x, groundPos.y, groundPos.z - dt * speed);
     });
 
-    if (this.grounds[0].getPosition().z < -groundLength) {
+    if (this.grounds[0].getPosition().z < -groundLength - 10) {
       const lastGroundZ =
         this.grounds[this.grounds.length - 1].getPosition().z + groundLength;
       this.grounds[0].setPosition(0, 1, lastGroundZ);

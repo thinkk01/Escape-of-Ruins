@@ -7,12 +7,19 @@ export class Scene {
   private player: pc.Entity;
   private coinsCollected: number;
   private coinLabel: pc.ElementComponent;
+  private assetsFont: pc.Asset;
 
-  constructor(app: pc.Application, coin: Coin, player: pc.Entity) {
+  constructor(
+    app: pc.Application,
+    coin: Coin,
+    player: pc.Entity,
+    assetsFont: pc.Asset
+  ) {
     this.app = app;
     this.coin = coin;
     this.player = player;
     this.coinsCollected = 0;
+    this.assetsFont = assetsFont;
 
     this.createUIScreen();
   }
@@ -22,22 +29,26 @@ export class Scene {
 
     screenEntity.addComponent("screen", {
       screenSpace: true,
-      referenceResolution: { x: 1280, y: 720 },
+      referenceResolution: new pc.Vec2(1280, 720),
+      scaleBlend: 0.5,
       scaleMode: pc.SCALEMODE_BLEND,
     });
+    screenEntity.setPosition(0, 5, -50);
+    screenEntity.setLocalScale(0.01, 0.01, 0.01);
 
     this.app.root.addChild(screenEntity);
-
+    console.log(screenEntity);
     const coinTextEntity = new pc.Entity("coinLabel");
-
+    // console.log(this.assetsFont);
     coinTextEntity.addComponent("element", {
-      type: "text",
-      anchor: [0, 1, 0, 1],
-      pivot: [0, 1],
+      type: pc.ELEMENTTYPE_TEXT,
+      fontAsset: this.assetsFont,
+      pivot: new pc.Vec2(0.5, 0.5),
+      anchor: new pc.Vec4(0.5, 0.5, 0.5, 0.5),
       fontSize: 32,
-      color: new pc.Color(1, 1, 1),
       text: "Coins: 0",
-      margin: [10, 10, 0, 0],
+      color: new pc.Color(1, 1, 1),
+      // screenSpace: false,
     });
     screenEntity.addChild(coinTextEntity);
 

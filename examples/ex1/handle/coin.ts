@@ -4,25 +4,41 @@ export class Coin {
   private app: pc.Application;
   private coins: pc.Entity[];
   private coinTexture: pc.Asset;
+  private coinMaterial: pc.Asset;
+  private spawnInterval: number;
+  private distanceTraveled: number;
 
-  constructor(app: pc.Application, coinTexture: pc.Asset) {
+  constructor(
+    app: pc.Application,
+    coinTexture: pc.Asset,
+    coinMaterial: pc.Asset
+  ) {
     this.app = app;
     this.coinTexture = coinTexture;
+    this.coinMaterial = coinMaterial;
     this.coins = [];
-
-    this.spawnCoins();
+    this.spawnInterval = 2000;
+    this.distanceTraveled = 0;
+    this.beginGame();
   }
 
-  private spawnCoins() {
-    const coinCount = 5;
-    const coinSpacing = 5;
-
+  private spawnCoins(rows: number) {
+    let coinCount = 5;
+    const randomX = Math.random() < 0.33 ? -2 : Math.random() < 0.5 ? 0 : 2;
     for (let i = 0; i < coinCount; i++) {
-      const coin = this.createCoin(0, 2, 15 + i * 2);
+      const coin = this.createCoin(randomX, 2, 15 + i * 2);
       this.coins.push(coin);
     }
   }
-
+  private beginGame() {
+    const array = [2, 0, -2];
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 5; j++) {
+        const coin = this.createCoin(array[i], 2, 10 + j * 2);
+        this.coins.push(coin);
+      }
+    }
+  }
   private createCoin(x: number, y: number, z: number): pc.Entity {
     const coin = new pc.Entity("coin");
 
@@ -33,7 +49,7 @@ export class Coin {
 
     if (this.coinTexture && this.coinTexture.resource) {
       const coinMaterial = new pc.StandardMaterial();
-      coinMaterial.diffuseMap = this.coinTexture.resource;
+      coinMaterial.diffuse = new pc.Color(187 / 255, 160 / 255, 60 / 255);
       coinMaterial.update();
 
       coin.model!.meshInstances.forEach((meshInstance) => {
@@ -68,6 +84,11 @@ export class Coin {
   }
 
   public update(dt: number, player: pc.Entity): boolean {
+    this.distanceTraveled += dt * 2;
+    if (this.distanceTraveled >= 50) {
+      this.spawnCoins(1);
+      this.distanceTraveled = 0;
+    }
     this.coins.forEach((coin) => {
       const speed = 2;
       const coinPos = coin.getPosition();

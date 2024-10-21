@@ -2,6 +2,8 @@ import * as pc from "playcanvas";
 import { stateMachine } from "../common/common";
 
 export class Player {
+  private rotateX: number = 10;
+  private rotateY: number = 30;
   entity: pc.Entity;
   stateMachine: any;
   isJumping: boolean = false;
@@ -79,40 +81,54 @@ export class Player {
     }
   }
 
-  updateSwapLane(keyboard: pc.Keyboard) {
+  updateSwapLane(keyboard: pc.Keyboard, dt: number) {
+    // console.log(this.currentLane);
+    // console.log(this.entity.getPosition());
+
     if (this.canChangeLane) {
-      if (
-        keyboard.isPressed(pc.KEY_LEFT) &&
-        this.currentLane > 0 &&
-        this.swapLeft
-      ) {
+      if (keyboard.isPressed(pc.KEY_LEFT) && this.currentLane > 0) {
         this.currentLane -= 1;
         this.canChangeLane = false;
+        this.entity.setLocalEulerAngles(0, this.rotateY, -this.rotateX);
       }
       if (this.currentLane < 1) {
         this.swapLeft = false;
         this.swapRight = true;
       }
+
       if (this.currentLane > 1) {
         this.swapRight = false;
         this.swapLeft = true;
       }
       if (
         keyboard.isPressed(pc.KEY_RIGHT) &&
-        this.currentLane < this.lanes.length - 1 &&
-        this.swapRight
+        this.currentLane < this.lanes.length - 1
       ) {
         this.currentLane += 1;
         this.canChangeLane = false;
+        this.entity.setLocalEulerAngles(0, -this.rotateY, this.rotateX);
       }
     }
     if (!keyboard.isPressed(pc.KEY_LEFT) && !keyboard.isPressed(pc.KEY_RIGHT)) {
       this.canChangeLane = true;
+      const currentRotation = this.entity.getLocalEulerAngles().z;
+      if (currentRotation !== 0) {
+        const rotationSpeed = 5;
+        const newRotation = pc.math.lerp(
+          currentRotation,
+          0,
+          rotationSpeed * dt
+        );
+        this.entity.setLocalEulerAngles(0, 0, newRotation);
+      }
     }
 
-    const targetX = this.lanes[this.currentLane];
     const currentPos = this.entity.getPosition();
-    this.entity.setPosition(new pc.Vec3(targetX, currentPos.y, currentPos.z));
+    let targetX = this.lanes[this.currentLane];
+    const moveSpeed = 10;
+
+    const newXx = pc.math.lerp(currentPos.x, targetX, moveSpeed * dt);
+    this.entity.setPosition(new pc.Vec3(newXx, currentPos.y, currentPos.z));
   }
 
   handleSlide(keyboard: pc.Keyboard) {
@@ -174,7 +190,7 @@ export class Player {
         this.collisionDebugEntity.setPosition(collisionPos);
 
         const scaleX = scale.x;
-        console.log(scaleX);
+        // console.log(scaleX);
         const scaleY = scale.y;
         const scaleZ = scale.z;
 

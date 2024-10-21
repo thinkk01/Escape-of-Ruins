@@ -19,6 +19,7 @@ async function init() {
 
   const canvas = document.createElement("canvas");
   document.body.appendChild(canvas);
+
   const app = new pc.Application(canvas, {
     mouse: new pc.Mouse(document.body),
     keyboard: new pc.Keyboard(window),
@@ -41,7 +42,7 @@ async function init() {
     normalOffsetBias: 0.05,
     shadowResolution: 2048,
   });
-  light.setEulerAngles(45, 0, 0);
+  light.setEulerAngles(-45, 0, 0);
   app.root.addChild(light);
 
   const assets = {
@@ -79,7 +80,13 @@ async function init() {
       url: "../ex1/assets/animation/idle/mixamo.com (4).glb",
     }),
     coinModel: new pc.Asset("coin", "model", {
-      url: "../ex1/assets/models/Coin.glb",
+      url: "../ex1/assets/models/coin/Coin.glb",
+    }),
+    coinMaterial: new pc.Asset("coinMaterial", "texture", {
+      url: "../ex1/assets/models/coin/Coin_ui.png",
+    }),
+    font: new pc.Asset("font", "font", {
+      url: "../ex1/assets/font/courier.json",
     }),
   };
 
@@ -92,7 +99,7 @@ async function init() {
     const camera = new Camera(app);
     const player = new Player(app, assets);
 
-    const initialZ = 0; // Z ban đầu cho ground
+    const initialZ = 0;
     const ground = new Ground(
       app,
       {
@@ -101,15 +108,15 @@ async function init() {
       },
       initialZ
     );
-    const coin = new Coin(app, assets.coinModel);
-    const scene = new Scene(app, coin, player.entity);
+    const coin = new Coin(app, assets.coinModel, assets.coinMaterial);
+    const scene = new Scene(app, coin, player.entity, assets.font);
     const cameraOffsetZ = -10;
     const cameraOffsetY = 4;
     const keyboard = new pc.Keyboard(document.body);
 
     app.on("update", (dt) => {
       ground.update(dt);
-      player.updateSwapLane(keyboard);
+      player.updateSwapLane(keyboard, dt);
       player.updateJump();
       player.handleJump(keyboard);
       player.handleSlide(keyboard);
@@ -117,7 +124,7 @@ async function init() {
       coin.update(dt, player.entity);
       scene.update(dt);
 
-      camera.followPlayer(player.entity, 0, cameraOffsetY, cameraOffsetZ);
+      camera.followPlayer(player.entity, 0, cameraOffsetY, cameraOffsetZ, dt);
     });
   });
 }
