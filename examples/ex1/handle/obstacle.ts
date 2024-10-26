@@ -1,6 +1,6 @@
 import * as pc from "playcanvas";
 
-export class Coin {
+export class Obstacle {
   private app: pc.Application;
   private entity: pc.Entity;
 
@@ -12,21 +12,20 @@ export class Coin {
     z: number
   ) {
     this.app = app;
-    this.entity = new pc.Entity("coin");
+    this.entity = new pc.Entity("obstacle");
 
-    // Thêm component model cho coin
+    // Thêm component model cho obstacle
     this.entity.addComponent("model", {
       type: "asset",
       asset: modelAsset,
     });
     this.entity.setPosition(x, y, z);
     this.entity.setLocalScale(1, 1, 1);
-
     // Thêm entity vào scene
     this.app.root.addChild(this.entity);
   }
 
-  // Các phương thức khác cho coin (ví dụ xử lý thu thập)
+  // Bạn có thể thêm các phương thức khác nếu cần
   public getEntity(): pc.Entity {
     return this.entity;
   }

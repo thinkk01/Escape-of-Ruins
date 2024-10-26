@@ -1,8 +1,12 @@
 import * as pc from "playcanvas";
+import { Obstacle } from "./obstacle";
+import { Coin } from "./coin";
 
 interface GroundAssets {
   groundModel: pc.Asset;
   groundTexture: pc.Asset;
+  obstacleModel: pc.Asset;
+  coinModel: pc.Asset;
 }
 
 export class Ground {
@@ -44,6 +48,10 @@ export class Ground {
       });
     }
 
+    for (let i = 0; i < 100; i += 30) {
+      this.addObstaclesAndCoin(ground, i);
+    }
+
     ground.addComponent("rigidbody", {
       type: "static",
       restitution: 0.5,
@@ -56,6 +64,41 @@ export class Ground {
 
     this.app.root.addChild(ground);
     return ground;
+  }
+
+  private addObstaclesAndCoin(ground: pc.Entity, zOffset: number): void {
+    const positions = [2, 0, -2];
+    const selectedPositions = this.getRandomPositions(positions, 2);
+
+    // Tạo hai obstacles tại hai vị trí ngẫu nhiên
+    selectedPositions.forEach((posX) => {
+      const obstacle = new Obstacle(
+        this.app,
+        this.assets.obstacleModel,
+        posX,
+        0,
+        zOffset
+      );
+      ground.addChild(obstacle.getEntity());
+    });
+
+    // Vị trí còn lại sẽ là coin
+    const coinPosition = positions.find(
+      (pos) => !selectedPositions.includes(pos)
+    )!;
+    const coin = new Coin(
+      this.app,
+      this.assets.coinModel,
+      coinPosition,
+      0.5,
+      zOffset
+    );
+    ground.addChild(coin.getEntity());
+  }
+
+  private getRandomPositions(arr: number[], count: number): number[] {
+    const shuffled = arr.sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
   }
 
   public update(dt: number): void {

@@ -1,10 +1,11 @@
 import * as pc from "playcanvas";
 import { createGround, loadMaterial } from "./common/common";
 import { Camera } from "./handle/camera";
-import { Player } from "./handle/player";
 import { Ground } from "./handle/ground";
 import { Coin } from "./handle/coin";
 import { Scene } from "./handle/scene";
+import { Player } from "./handle/player";
+import { Obstacle } from "./handle/obstacle";
 
 pc.WasmModule.setConfig("Ammo", {
   glueUrl: "../../AmmoJS/Utils/ammo.wasm.js",
@@ -88,6 +89,9 @@ async function init() {
     font: new pc.Asset("font", "font", {
       url: "../ex1/assets/font/courier.json",
     }),
+    obstacleModel: new pc.Asset("obstacle", "model", {
+      url: "../ex1/assets/obstacles/Fence.glb",
+    }),
   };
 
   const assetListLoader = new pc.AssetListLoader(
@@ -97,7 +101,6 @@ async function init() {
 
   assetListLoader.load(() => {
     const camera = new Camera(app);
-    const player = new Player(app, assets);
 
     const initialZ = 0;
     const ground = new Ground(
@@ -105,24 +108,26 @@ async function init() {
       {
         groundModel: assets.groundModel,
         groundTexture: assets.groundTexture,
+        obstacleModel: assets.obstacleModel,
+        coinModel: assets.coinModel,
       },
       initialZ
     );
-    const coin = new Coin(app, assets.coinModel, assets.coinMaterial);
-    const scene = new Scene(app, coin, player.entity, assets.font);
+
+    const player = new Player(app, assets, ground);
+    // const coin = new Coin(app, assets.coinModel, assets.coinMaterial);
+
+    // const scene = new Scene(app, coin, player.entity, assets.font);
     const cameraOffsetZ = -10;
     const cameraOffsetY = 4;
     const keyboard = new pc.Keyboard(document.body);
-
     app.on("update", (dt) => {
       ground.update(dt);
       player.updateSwapLane(keyboard, dt);
-      player.updateJump();
-      player.handleJump(keyboard);
-      player.handleSlide(keyboard);
+      player.update(keyboard, dt);
       // player.updateCollisionDebug();
-      coin.update(dt, player.entity);
-      scene.update(dt);
+      // coin.update(dt, player.entity);
+      // scene.update(dt);
 
       camera.followPlayer(player.entity, 0, cameraOffsetY, cameraOffsetZ, dt);
     });

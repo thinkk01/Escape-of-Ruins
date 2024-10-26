@@ -1,5 +1,6 @@
 import * as pc from "playcanvas";
 import { stateMachine } from "../common/common";
+import { Ground } from "./ground";
 
 export class Player {
   private rotateX: number = 10;
@@ -8,16 +9,19 @@ export class Player {
   stateMachine: any;
   isJumping: boolean = false;
   isSliding: boolean = false;
+  isFalling: boolean = false;
+  jumpStartHeight: number = 0;
   currentLane: number = 1;
-  canChangeLane: boolean = false;
+  canChangeLane: boolean = true;
   swapLeft: boolean = true;
   swapRight: boolean = true;
+  ground: Ground;
   lanes: number[] = [2, 0, -2];
   collisionDebugEntity: pc.Entity | null = null;
 
-  constructor(app: pc.Application, assets: any) {
+  constructor(app: pc.Application, assets: any, ground: Ground) {
+    this.ground = ground;
     this.entity = new pc.Entity("Character");
-
     this.entity.addComponent("model", {
       type: "asset",
       asset: assets.charModelAsset,
@@ -28,12 +32,23 @@ export class Player {
     this.entity.addComponent("animation", {
       assets: [
         assets.playerRunning,
-        assets.playerIdle,
         assets.playerJump,
+        assets.playerIdle,
         assets.playerSlide,
       ],
     });
-    this.entity.setPosition(0, 5, 6);
+    this.entity.addComponent("rigidbody", {
+      type: "kinematic",
+      angularFactor: new pc.Vec3(0, 0, 0),
+      // mass: 1,
+    });
+    this.entity.addComponent("collision", {
+      type: "capsule",
+      height: 2,
+      radius: 0.55,
+      linearOffset: new pc.Vec3(0, 1, 0),
+    });
+    this.entity.setPosition(this.lanes[this.currentLane], 1, 6);
     const material = this.entity.model?.meshInstances[0]
       .material as pc.StandardMaterial;
     material.diffuseMap = assets.playerTexture.resource;
@@ -52,85 +67,111 @@ export class Player {
       this.entity.animation?.play(assets.playerSlide.name, 0.2);
     });
 
-    this.entity.addComponent("rigidbody", {
-      type: "dynamic",
-      angularFactor: new pc.Vec3(0, 0, 0),
-      mass: 1,
-    });
-    this.entity.addComponent("collision", {
-      type: "capsule",
-      height: 2,
-      radius: 0.5,
-      linearOffset: new pc.Vec3(0, 1, 0),
-    });
-
     app.root.addChild(this.entity);
+  }
+  updateSwapLane(keyboard: pc.Keyboard, dt: number) {
+    const currentPos = this.entity.getPosition();
+    if (!this.isJumping) {
+      if (this.canChangeLane) {
+        if (keyboard.isPressed(pc.KEY_LEFT) && this.currentLane > 0) {
+          console.log("Di chuyển sang trái");
+          this.currentLane -= 1;
+          this.canChangeLane = false;
+          this.entity.setLocalEulerAngles(0, this.rotateY, -this.rotateX);
+        }
 
-    // this.createCollisionDebug(app);
+        if (
+          keyboard.isPressed(pc.KEY_RIGHT) &&
+          this.currentLane < this.lanes.length - 1
+        ) {
+          console.log("Di chuyển sang phải");
+          this.currentLane += 1;
+          this.canChangeLane = false;
+          this.entity.setLocalEulerAngles(0, -this.rotateY, this.rotateX);
+        }
+      }
+
+      const targetX = this.lanes[this.currentLane];
+      const moveSpeed = 4;
+      const distance = targetX - currentPos.x;
+
+      if (Math.abs(distance) > 0.1) {
+        const moveX = Math.sign(distance) * moveSpeed * dt;
+        this.entity.setPosition(
+          currentPos.x + moveX,
+          currentPos.y,
+          currentPos.z
+        );
+      } else {
+        this.entity.setPosition(targetX, currentPos.y, currentPos.z);
+        this.canChangeLane = true;
+      }
+
+      if (
+        !keyboard.isPressed(pc.KEY_LEFT) &&
+        !keyboard.isPressed(pc.KEY_RIGHT)
+      ) {
+        const currentRotation = this.entity.getLocalEulerAngles().z;
+        if (currentRotation !== 0) {
+          const rotationSpeed = 5;
+          const newRotation = pc.math.lerp(
+            currentRotation,
+            0,
+            rotationSpeed * dt
+          );
+          this.entity.setLocalEulerAngles(0, 0, newRotation);
+        }
+      }
+    }
   }
 
-  handleJump(keyboard: pc.Keyboard) {
+  handleJump(keyboard: pc.Keyboard, dt: number) {
     if (
-      keyboard.isPressed(pc.KEY_C) &&
+      keyboard.isPressed(pc.KEY_SPACE) &&
       !this.isJumping &&
-      this.entity.rigidbody!.linearVelocity.y < 0.5
+      !this.isFalling
     ) {
       this.stateMachine.changeState("jump");
-      this.entity.rigidbody!.applyImpulse(new pc.Vec3(0, 5, 0));
       this.isJumping = true;
+      this.jumpStartHeight = this.entity.getPosition().y;
+    }
+
+    if (this.isJumping) {
+      const playerPos = this.entity.getPosition();
+      const jumpSpeed = 3;
+      const jumpHeight = 2;
+
+      this.entity.setPosition(
+        this.lanes[this.currentLane],
+        playerPos.y + jumpSpeed * dt,
+        playerPos.z
+      );
+
+      if (playerPos.y >= this.jumpStartHeight + jumpHeight) {
+        this.isJumping = false;
+        this.isFalling = true;
+      }
     }
   }
 
-  updateSwapLane(keyboard: pc.Keyboard, dt: number) {
-    // console.log(this.currentLane);
-    // console.log(this.entity.getPosition());
+  updateFall(dt: number) {
+    if (this.isFalling) {
+      const playerPos = this.entity.getPosition();
+      const fallSpeed = -5;
 
-    if (this.canChangeLane) {
-      if (keyboard.isPressed(pc.KEY_LEFT) && this.currentLane > 0) {
-        this.currentLane -= 1;
-        this.canChangeLane = false;
-        this.entity.setLocalEulerAngles(0, this.rotateY, -this.rotateX);
-      }
-      if (this.currentLane < 1) {
-        this.swapLeft = false;
-        this.swapRight = true;
-      }
+      this.entity.setPosition(
+        this.lanes[this.currentLane],
+        Math.max(playerPos.y + fallSpeed * dt, 1),
+        playerPos.z
+      );
 
-      if (this.currentLane > 1) {
-        this.swapRight = false;
-        this.swapLeft = true;
-      }
-      if (
-        keyboard.isPressed(pc.KEY_RIGHT) &&
-        this.currentLane < this.lanes.length - 1
-      ) {
-        this.currentLane += 1;
-        this.canChangeLane = false;
-        this.entity.setLocalEulerAngles(0, -this.rotateY, this.rotateX);
+      if (playerPos.y <= 1) {
+        this.isFalling = false;
+        this.stateMachine.changeState("running");
+        this.entity.setPosition(this.lanes[this.currentLane], 1, playerPos.z);
       }
     }
-    if (!keyboard.isPressed(pc.KEY_LEFT) && !keyboard.isPressed(pc.KEY_RIGHT)) {
-      this.canChangeLane = true;
-      const currentRotation = this.entity.getLocalEulerAngles().z;
-      if (currentRotation !== 0) {
-        const rotationSpeed = 5;
-        const newRotation = pc.math.lerp(
-          currentRotation,
-          0,
-          rotationSpeed * dt
-        );
-        this.entity.setLocalEulerAngles(0, 0, newRotation);
-      }
-    }
-
-    const currentPos = this.entity.getPosition();
-    let targetX = this.lanes[this.currentLane];
-    const moveSpeed = 10;
-
-    const newXx = pc.math.lerp(currentPos.x, targetX, moveSpeed * dt);
-    this.entity.setPosition(new pc.Vec3(newXx, currentPos.y, currentPos.z));
   }
-
   handleSlide(keyboard: pc.Keyboard) {
     if (keyboard.isPressed(pc.KEY_DOWN) && !this.isSliding) {
       this.isSliding = true;
@@ -148,54 +189,47 @@ export class Player {
       }, 550);
     }
   }
-
-  updatePosition(targetX: number) {
-    const currentPos = this.entity.getPosition();
-    this.entity.setPosition(targetX, currentPos.y, currentPos.z);
+  update(keyboard: pc.Keyboard, dt: number) {
+    console.log(this.entity.getPosition().y);
+    this.updateSwapLane(keyboard, dt);
+    this.handleJump(keyboard, dt);
+    this.updateFall(dt);
+    this.handleSlide(keyboard);
   }
+  // updatePosition(targetX: number) {
+  //   const currentPos = this.entity.getPosition();
+  //   this.entity.setPosition(targetX, currentPos.y, currentPos.z);
+  // }
 
-  updateJump() {
-    if (this.isJumping) {
-      const playerPos = this.entity.getPosition();
-      if (this.entity.rigidbody!.linearVelocity.y <= 0) {
-        if (playerPos.y <= 1.5) {
-          this.entity.rigidbody!.linearVelocity = new pc.Vec3(0, 0, 0);
-          this.entity.setPosition(playerPos.x, 1, playerPos.z);
-          this.stateMachine.changeState("running");
-          this.isJumping = false;
-        }
-      }
-    }
-  }
-  createCollisionDebug(app: pc.Application) {
-    this.collisionDebugEntity = new pc.Entity("CollisionDebug");
-    const material = new pc.StandardMaterial();
-    material.diffuse = new pc.Color(1, 1, 1, 0.5);
-    material.update();
+  // createCollisionDebug(app: pc.Application) {
+  //   this.collisionDebugEntity = new pc.Entity("CollisionDebug");
+  //   const material = new pc.StandardMaterial();
+  //   material.diffuse = new pc.Color(1, 1, 1, 0.5);
+  //   material.update();
 
-    this.collisionDebugEntity.addComponent("model", {
-      type: "capsule",
-    });
-    this.collisionDebugEntity.model!.meshInstances[0].material = material;
+  //   this.collisionDebugEntity.addComponent("model", {
+  //     type: "capsule",
+  //   });
+  //   this.collisionDebugEntity.model!.meshInstances[0].material = material;
 
-    app.root.addChild(this.collisionDebugEntity);
-  }
+  //   app.root.addChild(this.collisionDebugEntity);
+  // }
 
-  updateCollisionDebug() {
-    if (this.entity.collision) {
-      const collisionPos = this.entity.getPosition();
-      const scale = this.entity.getLocalScale();
+  // updateCollisionDebug() {
+  //   if (this.entity.collision) {
+  //     const collisionPos = this.entity.getPosition();
+  //     const scale = this.entity.getLocalScale();
 
-      if (this.collisionDebugEntity) {
-        this.collisionDebugEntity.setPosition(collisionPos);
+  //     if (this.collisionDebugEntity) {
+  //       this.collisionDebugEntity.setPosition(collisionPos);
 
-        const scaleX = scale.x;
-        // console.log(scaleX);
-        const scaleY = scale.y;
-        const scaleZ = scale.z;
+  //       const scaleX = scale.x;
+  //       // console.log(scaleX);
+  //       const scaleY = scale.y;
+  //       const scaleZ = scale.z;
 
-        this.collisionDebugEntity.setLocalScale(scaleX, scaleY, scaleZ);
-      }
-    }
-  }
+  //       this.collisionDebugEntity.setLocalScale(scaleX, scaleY, scaleZ);
+  //     }
+  //   }
+  // }
 }

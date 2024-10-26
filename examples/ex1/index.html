@@ -12,5 +12,42 @@
   <script src="../../AmmoJS/Utils/ammo.wasm.js"></script>
   <script src="../../AmmoJS/Utils/ammo.wasm.wasm"></script> -->
   <script src="../../AmmoJS/Utils/ammo.js"></script>
+  <script id="vertexShader" type="x-shader/x-vertex">
+    attribute vec3 aPosition;
+    uniform mat4 matrix_model;
+    uniform mat4 matrix_viewProjection;
+
+    varying vec4 vColor;
+
+    vec4 getPosition() {
+        vec4 posW = matrix_model * vec4(aPosition, 1.0);
+
+        float depth = posW.z;
+        float noCurveDistance = 20.0;
+        float minDistanceToCurve = 20.0; // Thay đổi nếu cần
+
+        if (depth > noCurveDistance) {
+            float amountY = pow(depth - minDistanceToCurve, 2.0) * 0.0001; // Điều chỉnh theo chiều Y
+            posW.y += amountY; // Cong mặt đất xuống theo chiều Y
+        }
+
+        return posW;
+    }
+
+    void main(void) {
+        gl_Position = matrix_viewProjection * getPosition();
+    }
+  </script>
+
+  <script id="fragmentShader" type="x-shader/x-fragment">
+    precision mediump float;
+
+    uniform sampler2D uDiffuseMap;
+    varying vec4 worldPosition;
+
+    void main(void) {
+        gl_FragColor = texture2D(uDiffuseMap, worldPosition.xy);
+    }
+  </script>
   <script type="module" src="./index.ts"></script>
 </body>
